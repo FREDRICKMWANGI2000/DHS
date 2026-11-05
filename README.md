@@ -1,36 +1,77 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Digital Services Hub (DSH)
 
-## Getting Started
+> **Connect • Create • Get Things Done**  
+> High-speed Wi-Fi, captive portal, and full-service digital agency platform for Kenya.
 
-First, run the development server:
+---
 
+## 1. Quick Start
+
+### Prerequisites
+- Node.js LTS (v20+ or v26+)
+- npm (v10+)
+- Docker & Docker Compose (for PostgreSQL)
+- Git
+
+### Installation
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# Clone the repository
+git clone <repository_url>
+cd DHS
+
+# Install dependencies
+npm install
+
+# Setup environment variables
+cp .env.example .env.local
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Development
+```bash
+# Run local development server
+npm run dev
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+# Check types
+npm run typecheck
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# Run linter
+npm run lint
 
-## Learn More
+# Build for production
+npm run build
+```
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 2. Milestone Roadmap
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Milestone | Title | Status |
+| :--- | :--- | :--- |
+| **00** | Recovery and project decisions | Completed (Fresh machine bootstrap) |
+| **01** | Fresh development foundation | Completed |
+| **02** | Application structure and standards | **Active** |
+| **03** | PostgreSQL and data layer | Upcoming |
+| **04** | Authentication and role security | Upcoming |
+| **05** | Public website and brand system | Upcoming |
+| **06** | Wi-Fi packages and session engine | Upcoming |
+| **07** | M-Pesa Daraja payment integration | Upcoming |
+| **08** | Captive portal and /connect journey | Upcoming |
+| **09** | Digital-services order engine | Upcoming |
+| **10** | Customer portal | Upcoming |
+| **11** | Admin and staff dashboards | Upcoming |
+| **12** | Security, integration and regression QA | Upcoming |
+| **13** | MikroTik and Omada network integration | Upcoming |
+| **14** | Production deployment and pilot launch | Upcoming |
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 3. Brand Tokens & Design Rules
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+* **Palette**:
+  * Black: `#0A0A0A`
+  * Warm White: `#FAFAF7`
+  * Gold: `#C9A227`
+  * Bright Gold: `#FFD700`
+  * WhatsApp Green: `#25D366` (customer support)
+* **Architecture**: Modular monolith built on Next.js App Router.
+* **Security**: Server-authoritative pricing, RBAC (`CUSTOMER`, `STAFF`, `ADMIN`, `SUPER_ADMIN`), strictly decoupled payment vs. gateway states.

@@ -1,69 +1,60 @@
-import Image from "next/image";
+import Link from "next/link";
+import { DSH_BRAND } from "@/lib/constants/theme";
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="min-h-screen bg-[#0A0A0A] text-[#FAFAF7] flex flex-col justify-between p-6 sm:p-12">
+      <header className="flex justify-between items-center border-b border-[#262626] pb-6">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-lg bg-[#C9A227] flex items-center justify-center font-bold text-black text-xl shadow-md">
+            D
+          </div>
+          <div>
+            <h1 className="text-lg font-bold tracking-tight text-[#FAFAF7]">
+              {DSH_BRAND.name}
+            </h1>
+            <p className="text-xs text-[#C9A227] tracking-wider uppercase font-semibold">
+              {DSH_BRAND.tagline}
+            </p>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+        <nav className="flex items-center gap-4 text-sm">
+          <Link
+            href="/connect"
+            className="px-4 py-2 rounded-lg bg-[#C9A227] hover:bg-[#FFD700] text-black font-semibold transition"
           >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            Wi-Fi Portal
+          </Link>
+        </nav>
+      </header>
+
+      <main className="my-auto py-12 max-w-2xl">
+        <span className="inline-block px-3 py-1 text-xs font-semibold rounded-full bg-[#C9A227]/10 text-[#C9A227] border border-[#C9A227]/30 mb-6">
+          Milestone 02 • Foundation Active
+        </span>
+        <h2 className="text-4xl sm:text-5xl font-extrabold tracking-tight mb-4">
+          Connect. Create. <span className="text-[#C9A227]">Get Things Done.</span>
+        </h2>
+        <p className="text-base sm:text-lg text-zinc-400 mb-8 leading-relaxed">
+          The next-generation digital services hub and high-speed Wi-Fi network engine. Built with Next.js, PostgreSQL, and Safaricom Daraja integration.
+        </p>
+        <div className="flex flex-wrap gap-4">
+          <Link
+            href="/connect"
+            className="px-6 py-3 rounded-lg bg-[#C9A227] hover:bg-[#FFD700] text-black font-semibold transition"
           >
-            Documentation
-          </a>
+            Open Captive Portal
+          </Link>
+          <div className="px-6 py-3 rounded-lg bg-[#141414] border border-[#262626] text-zinc-400 font-mono text-sm">
+            Status: Standards &amp; Structure Ready
+          </div>
         </div>
       </main>
+
+      <footer className="border-t border-[#262626] pt-6 flex flex-col sm:flex-row justify-between text-xs text-zinc-500 gap-4">
+        <p>&copy; 2026 {DSH_BRAND.name}. All rights reserved.</p>
+        <p>Built with Next.js, PostgreSQL &amp; Tailwind CSS</p>
+      </footer>
     </div>
   );
 }
