@@ -69,12 +69,53 @@ docker compose --env-file .env.local restart postgres
 # Connect to database via psql inside the container
 docker exec -it dsh_postgres psql -U dsh_user -d dsh_db
 
-# Drizzle Kit CLI commands (delegated to @dsh/backend)
+# Drizzle Kit & Seed CLI commands (delegated to @dsh/backend)
 npm run db:generate   # Generate SQL migrations from schema
 npm run db:migrate    # Apply migrations to database
+npm run db:seed       # Seed default Wi-Fi packages and digital services (idempotent)
 npm run db:studio     # Launch Drizzle Studio browser GUI
 ```
 > **Warning**: Never execute `docker compose down -v` as that deletes the persistent volume and destroys database data.
+
+### Database Seeding & Administrator Price Protection
+The catalog seed system (`backend/scripts/seed.ts` & `backend/src/db/seed-catalog.ts`) populates the initial 5 Wi-Fi packages and 11 digital services:
+
+- **Idempotency Mechanism**: Uses `INSERT ... ON CONFLICT (slug) DO NOTHING` inside a database transaction.
+- **Administrator Change Protection**: The seed script **never overwrites** existing records. If an administrator edits a package or service's price, description, duration, display order, or active status, re-running `npm run db:seed` preserves the administrator's customizations untouched and reports any differences from the initial defaults.
+- **Strict Scope**: Only inserts missing catalog records (`wifi_packages` and `service_catalog`). Never creates fake customers, orders, sessions, or payments.
+
+#### Default Wi-Fi Packages (`wifi_packages`)
+| Order | Name | Slug | Default Price | Duration |
+| :--- | :--- | :--- | :--- | :--- |
+| 1 | Quick Connect | `quick-connect` | KES 20.00 | 60 minutes (1h) |
+| 2 | Standard | `standard` | KES 30.00 | 120 minutes (2h) |
+| 3 | Extended | `extended` | KES 50.00 | 240 minutes (4h) |
+| 4 | Day Pass | `day-pass` | KES 80.00 | 480 minutes (8h) |
+| 5 | Full Day | `full-day` | KES 100.00 | 1440 minutes (24h) |
+
+#### Default Digital Services (`service_catalog`)
+| Order | Service | Slug | Default Price | Pricing Unit |
+| :--- | :--- | :--- | :--- | :--- |
+| 1 | CV & Resume | `cv-resume` | KES 1,200.00 | `FIXED` |
+| 2 | Job Applications | `job-applications` | KES 800.00 | `FIXED` |
+| 3 | Cover Letters | `cover-letters` | KES 600.00 | `FIXED` |
+| 4 | Typing | `typing` | KES 200.00 | `FIXED` |
+| 5 | Document Formatting | `document-formatting` | KES 150.00 | `FIXED` |
+| 6 | PDF Services | `pdf-services` | KES 100.00 | `FIXED` |
+| 7 | Printing | `printing` | KES 15.00 | `PER_PAGE` |
+| 8 | Scanning | `scanning` | KES 25.00 | `PER_PAGE` |
+| 9 | Passport Photos | `passport-photos` | KES 250.00 | `PER_SET` |
+| 10 | Cyber Café | `cyber-cafe` | KES 50.00 | `PER_HOUR` |
+| 11 | Internet Access | `internet-access` | KES 100.00 | `PER_SESSION` |
+
+```bash
+# Run catalog seed
+npm run db:seed
+
+# Verify seeded records directly in PostgreSQL
+docker exec dsh_postgres psql -U dsh_user -d dsh_db -c "SELECT display_order, slug, name, price, duration_minutes, is_active FROM wifi_packages ORDER BY display_order;"
+docker exec dsh_postgres psql -U dsh_user -d dsh_db -c "SELECT display_order, slug, name, price, pricing_unit, is_active FROM service_catalog ORDER BY display_order;"
+```
 
 ### Development & Quality Scripts
 ```bash
