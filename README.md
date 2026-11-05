@@ -41,8 +41,10 @@ The database runs via Docker Compose using the official `postgres:18` image and 
 * **Client Initialization**: `backend/src/db/client.ts` initializes a `node-postgres` connection pool with connection timeouts, idle timeouts, and hot-reload singleton protection.
 * **Environment Resolution**: `backend/src/config/env.ts`, `backend/drizzle.config.ts`, and `backend/scripts/db-check.ts` resolve the monorepo root `.env.local` relative to their own file locations (`__dirname`), ensuring reliability regardless of working directory.
 * **Schema & Migrations Location**:
-  * Schemas: `backend/src/db/schema/**/*.ts`
-  * Migrations: `backend/drizzle/`
+  * Schema Entry Point: `backend/src/db/schema/index.ts` (18 tables, 9 enums, Drizzle relations)
+  * Migrations Directory: `backend/drizzle/` (`0000_bored_electro.sql` and `meta/_journal.json`)
+  * Migration Journal Table: `drizzle.__drizzle_migrations` in PostgreSQL
+  * Append-Only Protection: Database triggers (`prevent_append_only_mutation()`) enforce strict immutability on `audit_logs` and `service_order_status_history`.
 
 ```bash
 # Start PostgreSQL container in background (uses local secrets from .env.local)

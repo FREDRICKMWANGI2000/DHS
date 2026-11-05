@@ -352,7 +352,22 @@ Both `audit_logs` and `service_order_status_history` are strictly append-only:
 
 1. **Application Layer**:
    - Backend repositories and services only expose `insert` and `select` functions for `audit_logs` and `service_order_status_history`. No `update` or `delete` functions exist.
-2. **Database Migration Layer**:
-   - During migration execution (Checkpoint 5), a PostgreSQL trigger function `prevent_append_only_mutation()` is attached `BEFORE UPDATE OR DELETE` on `audit_logs` and `service_order_status_history` to reject any direct SQL modification or deletion with an exception.
+2. **Database Migration Layer (`backend/drizzle/0000_bored_electro.sql`)**:
+   - Trigger Function: `"public"."prevent_append_only_mutation"()` raises `EXCEPTION 'Table "%" is append-only; % operations are prohibited.'` (`ERRCODE = 'integrity_constraint_violation'`).
+   - Triggers Installed:
+     - `audit_logs_prevent_mutation_trg` (`BEFORE UPDATE OR DELETE ON "public"."audit_logs" FOR EACH ROW`)
+     - `service_order_status_history_prevent_mutation_trg` (`BEFORE UPDATE OR DELETE ON "public"."service_order_status_history" FOR EACH ROW`)
    - Actor references (`actor_user_id`, `changed_by`) use `ON DELETE SET NULL` so user lifecycle actions never cascade-delete audit or status history rows.
 
+---
+
+## 7. Migrations & Schema Governance
+
+- **Schema Entry Point**: `backend/src/db/schema/index.ts`
+- **Migration Output Directory**: `backend/drizzle/`
+  - Initial Migration: `backend/drizzle/0000_bored_electro.sql`
+  - Metadata & Snapshot: `backend/drizzle/meta/0000_snapshot.json`, `backend/drizzle/meta/_journal.json`
+- **Database Journal Table**: `drizzle.__drizzle_migrations` tracks applied migration hashes and timestamps so repeated executions of `npm run db:migrate` are idempotent no-ops.
+- **Safety Rules**:
+  - Always generate committed SQL migrations (`npm run db:generate`) and apply them via `npm run db:migrate`.
+  - Never use `drizzle-kit push` or destructive volume resets (`docker compose down -v`).

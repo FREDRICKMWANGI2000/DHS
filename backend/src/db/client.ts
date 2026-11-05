@@ -1,11 +1,12 @@
 import { Pool } from "pg";
 import { drizzle, NodePgDatabase } from "drizzle-orm/node-postgres";
 import { env } from "../config/env";
+import * as schema from "./schema";
 
 // Global singleton to prevent duplicate pools during watch/hot-reload cycles
 const globalForDb = globalThis as unknown as {
   pool: Pool | undefined;
-  db: NodePgDatabase | undefined;
+  db: NodePgDatabase<typeof schema> | undefined;
 };
 
 export const pool: Pool =
@@ -17,9 +18,10 @@ export const pool: Pool =
     idleTimeoutMillis: 30000,
   });
 
-export const db: NodePgDatabase =
+export const db: NodePgDatabase<typeof schema> =
   globalForDb.db ??
   drizzle(pool, {
+    schema,
     logger: env.nodeEnv === "development" && env.dbDebug,
   });
 
