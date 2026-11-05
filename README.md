@@ -163,11 +163,19 @@ npm run lint
 
 # Build all workspaces for production
 npm run build
+
+# Run authentication & session security infrastructure tests
+npm run test:auth
 ```
 
-### Backend Health Endpoints
+### Required Authentication Environment Variables (`.env.local`)
+- `SESSION_SECRET`: Cryptographically strong random secret (minimum **32 characters**) used for HMAC-SHA256 CSRF token signing and domain-separated OTP hashing. Validated at runtime by `backend/src/config/env.ts` (rejects missing, short, or production placeholder values).
+- `FRONTEND_URL`: Trusted frontend origin (e.g. `http://localhost:3000`) enforced by CORS and CSRF `Origin` validation.
+
+### Backend Health & Security Endpoints
 - `GET http://localhost:4000/api/v1/health` — Express service status
 - `GET http://localhost:4000/api/v1/health/db` — PostgreSQL pool connectivity & latency check
+- `GET http://localhost:4000/api/v1/auth/csrf` — Issues a 30-minute cryptographic CSRF token (`Cache-Control: no-store`)
 
 ---
 

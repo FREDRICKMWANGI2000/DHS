@@ -23,6 +23,7 @@
     "db:seed": "npm run db:seed --workspace=@dsh/backend",
     "db:generate": "npm run db:generate --workspace=@dsh/backend",
     "db:migrate": "npm run db:migrate --workspace=@dsh/backend",
-    "db:studio": "npm run db:studio --workspace=@dsh/backend"
+    "db:studio": "npm run db:studio --workspace=@dsh/backend",
+    "test:auth": "npm run test:auth --workspace=@dsh/backend"
   }
 }

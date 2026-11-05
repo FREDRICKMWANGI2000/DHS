@@ -12,9 +12,11 @@
     "db:seed": "tsx scripts/seed.ts",
     "db:generate": "drizzle-kit generate --config=drizzle.config.ts",
     "db:migrate": "drizzle-kit migrate --config=drizzle.config.ts",
-    "db:studio": "drizzle-kit studio --config=drizzle.config.ts"
+    "db:studio": "drizzle-kit studio --config=drizzle.config.ts",
+    "test:auth": "tsx scripts/test-auth-infra.ts"
   },
   "dependencies": {
+    "argon2": "^0.45.2",
     "cors": "^2.8.5",
     "dotenv": "^18.0.9",
     "drizzle-orm": "^0.45.4",
