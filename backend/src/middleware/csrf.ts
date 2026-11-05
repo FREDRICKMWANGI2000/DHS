@@ -7,6 +7,7 @@ import {
   validateRequestOrigin,
   verifyCsrfToken,
 } from "../services/auth/csrf.service";
+import { hashToken, isValidOpaqueToken } from "../services/auth/token.service";
 import { validateSession } from "../services/auth/session.service";
 import { DbExecutor, recordSecurityAudit } from "../services/auth/audit.service";
 import {
@@ -14,8 +15,14 @@ import {
   getCsrfContextCookie,
   getSessionCookie,
 } from "../utils/auth-cookie";
+import { sendError } from "../utils/api-response";
 
 const SAFE_HTTP_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+
+function isLogoutEndpoint(req: Request): boolean {
+  const url = (req.originalUrl || req.url || "").split("?")[0];
+  return url === "/api/v1/auth/logout" || url.endsWith("/auth/logout");
+}
 
 /**
  * Resolves the active CSRF binding context for an incoming request:
@@ -53,6 +60,15 @@ export async function resolveRequestCsrfBinding(
         sessionTokenHash: sessionResult.context.session.tokenHash,
       };
     }
+
+    // For idempotent logout, allow a valid CSRF token bound to the expired/revoked session cookie
+    if (isLogoutEndpoint(req) && isValidOpaqueToken(rawSessionToken)) {
+      return {
+        type: "sess",
+        sessionTokenHash: hashToken(rawSessionToken),
+      };
+    }
+
     clearSessionCookie(res);
   }
 
@@ -98,11 +114,12 @@ export function createCsrfProtectionMiddleware(
           executor
         );
 
-        res.status(403).json({
-          status: "error",
-          code: "CSRF_ORIGIN_MISMATCH",
-          message: "Request origin is not permitted.",
-        });
+        sendError(
+          res,
+          403,
+          "CSRF_ORIGIN_MISMATCH",
+          "Request origin is not permitted."
+        );
         return;
       }
 
@@ -112,7 +129,23 @@ export function createCsrfProtectionMiddleware(
         ? headerToken[0]
         : headerToken;
 
-      const verification = verifyCsrfToken(tokenValue, binding);
+      let verification = verifyCsrfToken(tokenValue, binding);
+
+      // If logout was called with an expired dsh_session AND an anonymous dsh_csrf_ctx cookie,
+      // also check the anonymous binding if the session-hash binding did not match.
+      if (!verification.valid && isLogoutEndpoint(req)) {
+        const csrfContextId = getCsrfContextCookie(req);
+        if (csrfContextId && isValidAnonymousCsrfContextId(csrfContextId)) {
+          const anonVerification = verifyCsrfToken(tokenValue, {
+            type: "anon",
+            csrfContextId,
+          });
+          if (anonVerification.valid) {
+            verification = anonVerification;
+          }
+        }
+      }
+
       if (!verification.valid) {
         await recordSecurityAudit(
           {
@@ -129,21 +162,13 @@ export function createCsrfProtectionMiddleware(
           executor
         );
 
-        res.status(403).json({
-          status: "error",
-          code: verification.code,
-          message: verification.message,
-        });
+        sendError(res, 403, verification.code, verification.message);
         return;
       }
 
       next();
     } catch {
-      res.status(500).json({
-        status: "error",
-        code: "INTERNAL_ERROR",
-        message: "Internal server error",
-      });
+      sendError(res, 500, "INTERNAL_ERROR", "Internal server error");
     }
   };
 }

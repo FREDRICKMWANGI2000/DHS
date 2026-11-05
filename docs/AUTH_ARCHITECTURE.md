@@ -155,7 +155,8 @@ sequenceDiagram
    - If the user exists, verify `password` against `users.password_hash` using Argon2id.
    - If password verification fails, log `auth.login.failed` (with `actor_user_id = user.id`) and return `401 Unauthorized` (`"Invalid credentials."`).
 3. **Account Status Enforcement**:
-   - If `user.status !== 'ACTIVE'` (`'DISABLED'`), do not create a session; log `auth.login.disabled_account` and return `403 Forbidden` (`"Account is disabled. Please contact support."`).
+   - The PostgreSQL `account_status` enum supports `ACTIVE` and `DISABLED`.
+   - Every non-`ACTIVE` user (`user.status !== 'ACTIVE'`, i.e. `'DISABLED'`) is denied authentication: no session is created, `auth.login.disabled_account` is recorded in `audit_logs`, and a generic `401 Unauthorized` (`INVALID_CREDENTIALS`: `"Invalid credentials."`) is returned so login responses never disclose whether an account is disabled or whether the password was wrong.
 4. **Session Rotation & Issuance**:
    - If the request already carries an existing `dsh_session` cookie, revoke that previous session row (`revoked_at = now()`) to prevent session fixation.
    - Generate a new 32-byte (256-bit) CSPRNG session token, hash it with SHA-256 (`token_hash`), and insert a new row into `sessions`.
@@ -184,8 +185,8 @@ sequenceDiagram
             API->>DB: INSERT INTO audit_logs ('auth.login.failed', actor_user_id=user.id)
             API-->>Client: 401 Unauthorized ("Invalid credentials.")
         else Password valid & user.status == 'DISABLED'
-            API->>DB: INSERT INTO audit_logs ('auth.login.disabled', actor_user_id=user.id)
-            API-->>Client: 403 Forbidden ("Account is disabled.")
+            API->>DB: INSERT INTO audit_logs ('auth.login.disabled_account', actor_user_id=user.id)
+            API-->>Client: 401 Unauthorized ("Invalid credentials.")
         else Password valid & user.status == 'ACTIVE'
             API->>DB: Revoke any pre-existing session from request cookie
             API->>DB: INSERT INTO sessions (user_id, token_hash, expires_at, ip_address, user_agent)
@@ -208,7 +209,7 @@ sequenceDiagram
      - `sessions.revoked_at IS NULL`
      - `sessions.expires_at > now()`
      - `users.status = 'ACTIVE'`
-   - If no row matches or the user is `DISABLED`, clears the `dsh_session` cookie and returns `401 Unauthorized`.
+   - If no row matches, clears the `dsh_session` cookie and returns `401 Unauthorized`; if the user's status is `DISABLED` (`status !== 'ACTIVE'`), clears the `dsh_session` cookie and returns `403 Forbidden` (`ACCOUNT_DISABLED`).
    - Attaches authenticated context `req.auth = { user, sessionId }` to the Express request.
 2. **Single-Session Logout (`POST /api/v1/auth/logout`)**:
    - Marks the current session row `revoked_at = now()` in `sessions`.
@@ -568,7 +569,7 @@ All endpoints return JSON following a consistent envelope:
 - **Success Response (`200 OK`)**:
   - Sets rotated `dsh_session` (`HttpOnly`), clears `dsh_csrf_ctx`, and returns a rotated session-bound `csrfToken` in the JSON body.
   - Body: `{ "status": "ok", "data": { "user": { ... }, "csrfToken": "..." } }`
-- **Errors**: `400 VALIDATION_ERROR`, `401 INVALID_CREDENTIALS`, `403 ACCOUNT_DISABLED`, `403 CSRF_INVALID`, `429 RATE_LIMITED`.
+- **Errors**: `400 VALIDATION_ERROR`, `401 INVALID_CREDENTIALS` (uniform generic error for unknown user, wrong password, or `DISABLED` account), `403 CSRF_TOKEN_INVALID`, `403 CSRF_TOKEN_EXPIRED`, `429 RATE_LIMITED`.
 
 #### 3. `POST /api/v1/auth/logout`
 - **Request Body**: `{}`
@@ -668,7 +669,7 @@ Future implementation checkpoints in Milestone 04 will verify:
 3. **Duplicate Account Handling**: Verify case-insensitive email duplicates (`User@Example.com` vs `user@example.com`) and equivalent Kenyan phone formats (`0712345678` vs `+254712345678`) return `409 Conflict` without leaking account details.
 4. **Password Hashing & Verification**: Verify Argon2id PHC string format (`$argon2id$...`), correct password acceptance, wrong password rejection, and zero plaintext exposure.
 5. **Login Success & Failure**: Verify login with email and login with phone (`07...` and `+2547...`), generic `401` error on unknown identifier or wrong password, and updated `last_login_at`.
-6. **Account Deactivation**: Verify a user with `status = 'DISABLED'` cannot log in (`403`) and any existing session is immediately rejected by `requireAuth` (`401`).
+6. **Account Deactivation**: Verify a user with `status = 'DISABLED'` cannot log in (denied with generic `401 INVALID_CREDENTIALS` and audited as `auth.login.disabled_account`) and any existing session is immediately rejected by `requireAuth` (`403 ACCOUNT_DISABLED`).
 7. **Session Creation, Rotation & Expiry**: Verify `sessions.token_hash` is a 64-char SHA-256 hex digest (never equal to raw cookie value), expired sessions (`expires_at <= now()`) return `401`, and re-logging in revokes the previous session cookie.
 8. **Logout & Logout-All**: Verify `POST /logout` sets `revoked_at` on the current session only, while `POST /logout-all` sets `revoked_at` on all sessions belonging to that user.
 9. **Password Reset Expiry & Single-Use**: Verify expired reset tokens fail, consumed reset tokens (`used_at IS NOT NULL`) cannot be replayed, and successful reset revokes all active user sessions.

@@ -13,7 +13,7 @@
     "db:generate": "drizzle-kit generate --config=drizzle.config.ts",
     "db:migrate": "drizzle-kit migrate --config=drizzle.config.ts",
     "db:studio": "drizzle-kit studio --config=drizzle.config.ts",
-    "test:auth": "tsx scripts/test-auth-infra.ts"
+    "test:auth": "tsx scripts/test-auth-infra.ts && tsx scripts/test-auth-endpoints.ts"
   },
   "dependencies": {
     "argon2": "^0.45.2",
@@ -21,7 +21,8 @@
     "dotenv": "^18.0.9",
     "drizzle-orm": "^0.45.4",
     "express": "^4.21.2",
-    "pg": "^8.23.1"
+    "pg": "^8.23.1",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@eslint/js": "^9",

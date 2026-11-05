@@ -3,17 +3,20 @@ import cors from "cors";
 import { env } from "./config/env";
 import { db } from "./db/client";
 import { healthRouter } from "./routes/health";
-import { createAuthRouter } from "./routes/auth";
+import { AuthRouterOptions, createAuthRouter } from "./routes/auth";
 import { createCsrfProtectionMiddleware } from "./middleware/csrf";
 import { DbExecutor } from "./services/auth/audit.service";
 
 export function createApp(
   executor: DbExecutor = db,
-  extraApiV1Router?: Router
+  extraApiV1Router?: Router,
+  authOptions?: Omit<AuthRouterOptions, "executor">
 ): Express {
   const app = express();
 
   app.disable("x-powered-by");
+  // Do not trust arbitrary X-Forwarded-For headers unless behind a explicitly configured trusted proxy
+  app.set("trust proxy", false);
 
   app.use(
     cors({
@@ -37,7 +40,7 @@ export function createApp(
 
   // API v1 Routes
   app.use("/api/v1/health", healthRouter);
-  app.use("/api/v1/auth", createAuthRouter(executor));
+  app.use("/api/v1/auth", createAuthRouter({ ...authOptions, executor }));
   if (extraApiV1Router) {
     app.use("/api/v1", extraApiV1Router);
   }

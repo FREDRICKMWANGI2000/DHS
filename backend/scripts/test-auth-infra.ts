@@ -123,15 +123,18 @@ test("1. Environment & SESSION_SECRET validation", () => {
 });
 
 test("2. Argon2id Password Engine — policy validation, hashing, salting & malformed hash handling", async () => {
-  // Policy boundary checks
+  // Policy boundary checks (8–128 chars, at least one letter, at least one number or symbol)
   assert.equal(validatePassword(null).valid, false);
   assert.equal(validatePassword("       ").valid, false);
-  assert.equal(validatePassword("Ab1!567").valid, false); // 7 chars (< 8)
-  assert.equal(validatePassword("Ab1!5678").valid, true); // 8 chars exact
-  assert.equal(validatePassword("a".repeat(127) + "1").valid, true); // 128 chars exact
-  assert.equal(validatePassword("a".repeat(128) + "1").valid, false); // 129 chars (> 128)
-  assert.equal(validatePassword("onlylettersinpassword").valid, false); // missing number/symbol
-  assert.equal(validatePassword("1234567890!@#").valid, false); // missing letter
+  assert.equal(validatePassword("Ab1!567").valid, false); // 7 chars (< 8 invalid)
+  assert.equal(validatePassword("Ab1!5678").valid, true); // 8 chars exact (valid)
+  assert.equal(validatePassword("Abcdefg1").valid, true); // 8 chars with letter + number (valid)
+  assert.equal(validatePassword("Abcdefg!").valid, true); // 8 chars with letter + symbol (valid)
+  assert.equal(validatePassword("a".repeat(127) + "1").valid, true); // 128 chars exact with letter + number (valid)
+  assert.equal(validatePassword("a".repeat(127) + "!").valid, true); // 128 chars exact with letter + symbol (valid)
+  assert.equal(validatePassword("a".repeat(128) + "1").valid, false); // 129 chars (> 128 invalid)
+  assert.equal(validatePassword("onlylettersinpassword").valid, false); // missing number or symbol (invalid)
+  assert.equal(validatePassword("1234567890!@#").valid, false); // missing letter (invalid)
 
   await assert.rejects(
     async () => hashPassword("short1"),

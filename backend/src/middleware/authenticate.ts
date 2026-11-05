@@ -7,6 +7,7 @@ import {
 } from "../services/auth/session.service";
 import { DbExecutor, recordSecurityAudit } from "../services/auth/audit.service";
 import { clearSessionCookie, getSessionCookie } from "../utils/auth-cookie";
+import { sendError } from "../utils/api-response";
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -28,11 +29,7 @@ export function createAuthenticateMiddleware(
     try {
       const rawToken = getSessionCookie(req);
       if (!rawToken) {
-        res.status(401).json({
-          status: "error",
-          code: "UNAUTHENTICATED",
-          message: "Authentication required.",
-        });
+        sendError(res, 401, "UNAUTHENTICATED", "Authentication required.");
         return;
       }
 
@@ -49,30 +46,23 @@ export function createAuthenticateMiddleware(
         clearSessionCookie(res);
 
         if (result.reason === "ACCOUNT_DISABLED") {
-          res.status(403).json({
-            status: "error",
-            code: "ACCOUNT_DISABLED",
-            message: "Account is disabled. Please contact support.",
-          });
+          sendError(
+            res,
+            403,
+            "ACCOUNT_DISABLED",
+            "Account is disabled. Please contact support."
+          );
           return;
         }
 
-        res.status(401).json({
-          status: "error",
-          code: "UNAUTHENTICATED",
-          message: "Invalid or expired session.",
-        });
+        sendError(res, 401, "UNAUTHENTICATED", "Invalid or expired session.");
         return;
       }
 
       req.auth = result.context;
       next();
     } catch {
-      res.status(500).json({
-        status: "error",
-        code: "INTERNAL_ERROR",
-        message: "Internal server error",
-      });
+      sendError(res, 500, "INTERNAL_ERROR", "Internal server error");
     }
   };
 }
@@ -144,11 +134,7 @@ export function createRequireRoleMiddleware(
   ): Promise<void> => {
     try {
       if (!req.auth) {
-        res.status(401).json({
-          status: "error",
-          code: "UNAUTHENTICATED",
-          message: "Authentication required.",
-        });
+        sendError(res, 401, "UNAUTHENTICATED", "Authentication required.");
         return;
       }
 
@@ -169,21 +155,18 @@ export function createRequireRoleMiddleware(
           executor
         );
 
-        res.status(403).json({
-          status: "error",
-          code: "FORBIDDEN",
-          message: "Insufficient permissions for this operation.",
-        });
+        sendError(
+          res,
+          403,
+          "FORBIDDEN",
+          "Insufficient permissions for this operation."
+        );
         return;
       }
 
       next();
     } catch {
-      res.status(500).json({
-        status: "error",
-        code: "INTERNAL_ERROR",
-        message: "Internal server error",
-      });
+      sendError(res, 500, "INTERNAL_ERROR", "Internal server error");
     }
   };
 }
