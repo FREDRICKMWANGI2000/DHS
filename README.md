@@ -22,17 +22,47 @@ DSH is organized as an npm Workspaces monorepo:
 - Docker & Docker Compose (for PostgreSQL 18)
 - Git
 
-### Installation
+### New Machine Onboarding (Step-by-Step)
 ```bash
-# Clone the repository
-git clone <repository_url>
+# 1. Clone the repository
+git clone https://github.com/FREDRICKMWANGI2000/DHS.git
 cd DHS
 
-# Install all workspace dependencies
+# 2. Install all workspace dependencies
 npm install
 
-# Setup environment variables at repository root
-cp .env.example .env.local
+# 3. Configure .env.local at repository root (never committed to Git)
+cat << 'EOF' > .env.local
+NODE_ENV=development
+FRONTEND_URL=http://localhost:3000
+BACKEND_PORT=4000
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+NEXT_PUBLIC_API_URL=http://localhost:4000/api/v1
+POSTGRES_DB=dsh_db
+POSTGRES_USER=dsh_user
+POSTGRES_PASSWORD=replace_with_secure_local_password
+DATABASE_URL=postgresql://dsh_user:replace_with_secure_local_password@127.0.0.1:5432/dsh_db
+SESSION_SECRET=replace_with_at_least_32_char_random_secret
+EOF
+chmod 600 .env.local
+
+# 4. Start PostgreSQL 18 via Docker Compose
+docker compose --env-file .env.local up -d
+
+# 5. Apply database migrations
+npm run db:migrate
+
+# 6. Seed the initial Wi-Fi packages and digital services catalog
+npm run db:seed
+
+# 7. Start the backend Express API server (http://localhost:4000)
+npm run dev:backend
+
+# 8. Start the frontend Next.js application (http://localhost:3000)
+npm run dev:frontend
+
+# 9. Run quality gates
+npm run db:check && npm run typecheck && npm run lint && npm run build
 ```
 
 ### Database (PostgreSQL 18 & Drizzle ORM)
