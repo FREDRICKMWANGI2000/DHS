@@ -1,0 +1,2 @@
+ALTER TABLE "verification_tokens" ADD COLUMN "attempt_count" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "verification_tokens" ADD CONSTRAINT "verification_tokens_attempt_count_non_negative_chk" CHECK ("verification_tokens"."attempt_count" >= 0);

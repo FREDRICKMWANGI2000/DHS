@@ -4,6 +4,7 @@ import {
   uuid,
   varchar,
   text,
+  integer,
   timestamp,
   uniqueIndex,
   index,
@@ -71,6 +72,7 @@ export const verificationTokens = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
     tokenHash: varchar("token_hash", { length: 128 }).notNull(),
     verificationType: verificationTypeEnum("verification_type").notNull(),
+    attemptCount: integer("attempt_count").default(0).notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     usedAt: timestamp("used_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -86,6 +88,10 @@ export const verificationTokens = pgTable(
     check(
       "verification_tokens_expires_chk",
       sql`${table.expiresAt} > ${table.createdAt}`
+    ),
+    check(
+      "verification_tokens_attempt_count_non_negative_chk",
+      sql`${table.attemptCount} >= 0`
     ),
   ]
 );

@@ -433,36 +433,41 @@ For every `POST`, `PUT`, `PATCH`, and `DELETE` request:
 
 ## 7. Email & Phone Verification and Delivery Abstractions
 
-### 7.1 Token Generation, Expiration & Anti-Enumeration
+### 7.1 Token Generation, Fragment URL Strategy, Expiration & Anti-Enumeration
 - **Email Verification (`verification_type = 'EMAIL'`)**:
   - 32-byte CSPRNG URL-safe token (`base64url`), SHA-256 hashed in `verification_tokens.token_hash`.
-  - Expires in **24 hours**.
-  - Consumed via `POST /api/v1/auth/verify-email`: sets `verification_tokens.used_at = now()` and `users.email_verified_at = now()`.
+  - Expires in **24 hours** (`EMAIL_VERIFICATION_TTL_MS`).
+  - **URL Fragment Link Design**: Verification links use `${FRONTEND_URL}/verify-email#token=<rawToken>` so the raw token is carried in the URL fragment (`#...`) and is never sent automatically in HTTP `Referer` headers or logged in proxy access logs.
+  - Consumed via `POST /api/v1/auth/verify-email` inside a PostgreSQL transaction using `SELECT ... FOR UPDATE`: sets `verification_tokens.used_at = now()` and `users.email_verified_at = now()` atomically.
+- **Password Recovery (`password_reset_tokens`)**:
+  - 32-byte CSPRNG URL-safe token (`base64url`), SHA-256 hashed in `password_reset_tokens.token_hash`.
+  - Expires in **30 minutes** (`PASSWORD_RESET_TTL_MS`).
+  - **URL Fragment Link Design**: Password reset links use `${FRONTEND_URL}/reset-password#token=<rawToken>`.
+  - Only issued for active accounts with a **verified email address** (`email_verified_at IS NOT NULL`) when an `EmailDeliveryProvider` is configured. Unverified email addresses never receive reset links, and phone-only recovery remains unavailable until a live SMS provider is integrated.
+  - Consumed via `POST /api/v1/auth/reset-password` inside a PostgreSQL transaction (`SELECT ... FOR UPDATE`): marks the reset token used, updates `users.password_hash` (Argon2id), and revokes all active user sessions without auto-creating a new session.
 - **Phone Verification (`verification_type = 'PHONE'`)**:
-  - 6-digit cryptographically random OTP (`crypto.randomInt(100000, 1000000).toString()`), hashed with `HMAC_SHA256(SESSION_SECRET, "${userId}:PHONE:${otp}")` and stored in `verification_tokens.token_hash`.
-  - Expires in **10 minutes**.
-  - Consumed via `POST /api/v1/auth/verify-phone`: sets `verification_tokens.used_at = now()` and `users.phone_verified_at = now()`.
-- **Anti-Enumeration & Replay Protection**:
-  - Failed verification attempts return a uniform `400 Bad Request` (`"Invalid or expired verification token."`) regardless of whether the token never existed, expired, or was already consumed.
-  - Requesting a new verification token (`POST /api/v1/auth/resend-verification`) invalidates any previously unused `verification_tokens` of the same `verification_type` for that user (`used_at = now()`) and returns a generic `200 OK` confirmation without disclosing internal account state to unauthenticated callers.
+  - 6-digit cryptographically random OTP (`crypto.randomInt(100000, 1000000).toString()`), hashed with domain-separated `HMAC_SHA256(SESSION_SECRET, "${userId}:PHONE:${otp}")` and stored in `verification_tokens.token_hash`.
+  - Expires in **10 minutes** (`PHONE_VERIFICATION_TTL_MS`).
+  - Consumed via `POST /api/v1/auth/verify-phone` inside a PostgreSQL transaction (`SELECT ... FOR UPDATE` on `verification_tokens`): failed attempts increment `verification_tokens.attempt_count` in PostgreSQL (up to `DEFAULT_MAX_PHONE_OTP_ATTEMPTS = 5`; the 5th failed attempt sets `attempt_count = 5` and `used_at = now()` atomically, permanently invalidating the token across backend restarts and concurrent requests). On match, sets `verification_tokens.used_at = now()` and `users.phone_verified_at = now()` atomically.
+- **Anti-Enumeration, Cooldown & Replay Protection**:
+  - Failed verification or password-reset attempts return a uniform `400 Bad Request` (`INVALID_OR_EXPIRED_TOKEN`) regardless of whether the token never existed, expired, or was already consumed.
+  - Requesting a new verification token (`POST /api/v1/auth/resend-verification`) enforces that authenticated customers may only target their own account, applies a 60-second per-user cooldown serialized via `SELECT ... FOR UPDATE` on `users`, invalidates any previously unused `verification_tokens` of the same `verification_type`, and returns a generic `200 OK` confirmation.
 
-### 7.2 Provider Abstractions & SMS Non-Operational Status
-- **Email Provider Abstraction (`EmailDeliveryProvider`)**:
-  - Uses existing `.env.example` variables `RESEND_API_KEY` and `EMAIL_FROM`.
-  - In `development` when `RESEND_API_KEY` is a placeholder, uses a safe development log/test adapter; in `production`, dispatches via Resend HTTPS API.
-- **SMS Provider Status (Not Yet Configured / Not Operational)**:
-  - **Important Operational Status**: SMS OTP delivery requires an external SMS gateway provider to be selected, configured, connected, and tested. **Phone verification via live SMS is NOT operational in this milestone** until an SMS provider is integrated.
-  - The backend defines a provider-independent `SmsDeliveryProvider` interface:
-    ```ts
-    export interface SmsDeliveryProvider {
-      sendVerificationOtp(params: {
-        toPhoneE164: string;
-        code: string;
-        expiresInMinutes: number;
-      }): Promise<{ delivered: boolean; providerReference?: string }>;
-    }
-    ```
-  - Until a real SMS gateway is configured, `SmsDeliveryProvider` defaults to a non-operational / disabled adapter in production (returning a clear `503 SMS_VERIFICATION_UNAVAILABLE` if invoked when no provider is configured) and a local test/stub adapter in automated tests, without requiring fake SMS credentials in `.env.example`.
+### 7.2 Provider Abstractions & Missing Provider Configuration Behavior
+- **Email Provider Abstraction (`EmailDeliveryProvider` in `backend/src/services/email/`)**:
+  - Uses existing `.env.example` variables `RESEND_API_KEY` and `EMAIL_FROM` via `ResendEmailDeliveryProvider`.
+  - **When No Email Provider Is Configured** (e.g., `RESEND_API_KEY` is unset or set to the `.env.example` placeholder `re_placeholder_development_api_key`):
+    - Raw tokens are **never** printed to `console` logs.
+    - Users are **not** marked as verified and messages are **not** pretended to have been delivered (`isConfigured() === false`, `delivered: false`).
+    - Public endpoints (`POST /api/v1/auth/resend-verification`, `POST /api/v1/auth/forgot-password`) still return safe generic HTTP `200 OK` responses to prevent enumeration or internal error exposure, while recording an internal delivery failure audit event (`auth.email_verification.delivery_failed` / `auth.password_reset.delivery_failed` with `errorCode: "EMAIL_PROVIDER_NOT_CONFIGURED"`).
+  - Automated tests exclusively use `MockEmailDeliveryProvider` and never send external network messages.
+- **SMS Provider Status (`SmsDeliveryProvider` in `backend/src/services/sms/` — Live Provider Not Yet Selected)**:
+  - **Important Operational Status**: Real phone verification and phone-only password recovery require an external SMS gateway provider decision and integration. **Live SMS delivery is NOT operational in this checkpoint.**
+  - The backend defines `SmsDeliveryProvider` with `sendVerificationOtp(phoneNumber, code)`.
+  - Until a real SMS provider is integrated and tested, the default runtime adapter (`UnconfiguredSmsDeliveryProvider`) reports `isConfigured() === false`:
+    - Phone OTP dispatch (`POST /api/v1/auth/resend-verification` with `type = "PHONE"`) returns **HTTP 503** with error code `SMS_VERIFICATION_UNAVAILABLE`, does **not** create a `verification_tokens` row pretending an SMS was sent, and does **not** mark the phone number verified.
+    - Phone-only password recovery (`POST /api/v1/auth/forgot-password` with a phone-only account) preserves the generic HTTP `200 OK` response without claiming an SMS was sent and records `auth.password_reset.sms_unavailable` in `audit_logs`.
+  - Automated tests use `MockSmsDeliveryProvider` to test the full OTP lifecycle without fake SMS credentials in `.env.example`.
 
 ---
 

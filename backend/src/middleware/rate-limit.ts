@@ -60,6 +60,12 @@ export const DEFAULT_AUTH_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 export const DEFAULT_REGISTER_IP_MAX = 5;
 export const DEFAULT_LOGIN_IP_MAX = 10;
 export const DEFAULT_LOGIN_IDENTIFIER_MAX = 5;
+export const DEFAULT_VERIFY_EMAIL_IP_MAX = 10;
+export const DEFAULT_RESEND_VERIFICATION_IP_MAX = 10;
+export const DEFAULT_RESEND_VERIFICATION_USER_MAX = 3;
+export const DEFAULT_VERIFY_PHONE_IP_MAX = 10;
+export const DEFAULT_FORGOT_PASSWORD_IP_MAX = 5;
+export const DEFAULT_RESET_PASSWORD_IP_MAX = 5;
 
 /**
  * Safely extracts the client IP address using Express's `req.ip` (which only honors

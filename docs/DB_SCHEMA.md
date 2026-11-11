@@ -126,8 +126,8 @@ One-time password reset token hashes.
 Email and phone verification token hashes.
 - **Primary Key**: `id` (`uuid`)
 - **Foreign Keys**: `user_id` -> `users.id` (`ON DELETE CASCADE`)
-- **Columns**: `token_hash` (`varchar(128)`, unique, NOT NULL), `verification_type` (`verification_type`, NOT NULL), `expires_at` (`timestamptz`, NOT NULL), `used_at` (`timestamptz`, nullable), `created_at` (`timestamptz`, NOT NULL)
-- **Indexes**: Unique on `token_hash`, index on `(user_id, verification_type)`.
+- **Columns**: `token_hash` (`varchar(128)`, unique, NOT NULL), `verification_type` (`verification_type`, NOT NULL), `attempt_count` (`integer`, NOT NULL, default `0`), `expires_at` (`timestamptz`, NOT NULL), `used_at` (`timestamptz`, nullable), `created_at` (`timestamptz`, NOT NULL)
+- **Constraints & Indexes**: Unique on `token_hash`, index on `(user_id, verification_type)`, `CHECK (expires_at > created_at)`, `CHECK (attempt_count >= 0)` (`verification_tokens_attempt_count_non_negative_chk`).
 
 #### 5. `audit_logs` (`audit.ts`)
 Immutable operational and security audit trail.
